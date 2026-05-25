@@ -1,34 +1,70 @@
 # Projects
 
-## Aurum Coffee
-
-高端咖啡品牌展示页，Apple 风格极简设计，单页多板块滚动。
-
-- 10 个内容板块：Hero、品牌故事、咖啡豆系列、订阅方案、冲煮指南、器具商店、工艺、用户评价、门店、邮件订阅
-- 纯 HTML + CSS + JS，零依赖
-- 滚动渐入动画、毛玻璃导航栏、响应式布局
-
-[在线预览](https://yavans.github.io/projects/aurum-coffee.html)
+个人项目合集，涵盖前端框架原理、算法可视化、游戏开发与品牌页面设计。
 
 ---
 
-## Tank Battle
+## 🧠 MiniReact — Virtual DOM & Hooks 框架
 
-双人同键盘坦克对战游戏，Canvas 实现。
+从头实现 React 核心机制的精简框架（~350 行）。
 
-- P1：WASD 移动 + F 射击 | P2：方向键移动 + / 射击
-- 子弹墙壁反弹、3秒复活机制、无敌时间保护
-- 粒子爆炸效果、实时 HUD 血量与比分
+- **Virtual DOM** diff 算法（同层比较，type → UPDATE / PLACEMENT / DELETION）
+- **Fiber 架构**：`requestIdleCallback` 分片调度，可中断的 reconciliation
+- **Hooks**：`useState`（状态队列）+ `useEffect`（依赖比较 + cleanup）
+- **事件系统** + Function Component 支持
 
-[在线预览](https://yavans.github.io/projects/tank-battle.html)
+→ [源码](mini-react/) | [在线预览](https://yavans.github.io/projects/mini-react/index.html)
 
 ---
 
-## Todo
+## ⚡ MyPromise — Promise/A+ 规范实现
 
-轻量待办事项应用，数据 localStorage 持久化。
+完整实现 [Promise/A+ 规范](https://promisesaplus.com/)，含全部 ES6+ 扩展。
 
-- 增删改查 + 双击编辑 + 三态筛选 + 一键清除已完成
-- CSS 动画、空状态提示
+- **核心**：三态状态机 → Then 链 → 异步回调队列
+- **Promise Resolution Procedure（2.3）**：thenable 递归解包、循环引用检测、多次调用保护
+- **静态方法**：`all` / `race` / `allSettled` / `any` / `resolve` / `reject`
+- **实例方法**：`then` / `catch` / `finally`
 
-[在线预览](https://yavans.github.io/projects/todo.html)
+→ [源码](promise-aplus/) | [测试套件](https://yavans.github.io/projects/promise-aplus/test.html)
+
+---
+
+## 📊 Algorithm Visualizer
+
+Canvas 动画可视化排序算法与路径搜索。
+
+**排序：** Quick Sort · Merge Sort · Heap Sort · Bubble Sort · Insertion Sort
+— 实时显示比较/交换次数，颜色标注操作位置
+
+**路径搜索：** A\* · Dijkstra · BFS · DFS
+— 交互式网格，鼠标绘制墙壁，拖动起终点，对比探索策略
+
+→ [源码](algo-visualizer/) | [在线预览](https://yavans.github.io/projects/algo-visualizer/index.html)
+
+---
+
+## 🎮 Tank Battle — 双人坦克对战
+
+Canvas 实时双人对战游戏，同键盘操作。
+
+- P1: WASD + F | P2: 方向键 + /
+- 子弹墙壁反弹、粒子爆炸、复活无敌、实时 HUD
+
+→ [在线预览](https://yavans.github.io/projects/tank-battle.html)
+
+---
+
+## ☕ Aurum Coffee — 高端品牌页
+
+Apple 风格极简品牌展示页，10 个板块，响应式布局。
+
+→ [在线预览](https://yavans.github.io/projects/aurum-coffee.html)
+
+---
+
+## ✅ Todo App
+
+轻量待办事项，localStorage 持久化。增删改查 + 双击编辑 + 三态筛选。
+
+→ [在线预览](https://yavans.github.io/projects/todo.html)

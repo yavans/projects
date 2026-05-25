@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>算法可视化</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  h1 { font-size: 24px; font-weight: 300; letter-spacing: -0.5px; margin-bottom: 20px; color: #94a3b8; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tabs button {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    background: #1e293b;
+    color: #94a3b8;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .tabs button.active { background: #3b82f6; color: #fff; }
+  .panel { display: none; flex-direction: column; align-items: center; gap: 16px; }
+  .panel.active { display: flex; }
+  canvas {
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    background: #0f172a;
+  }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .controls button {
+    padding: 10px 22px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #1e293b;
+    color: #e2e8f0;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .controls button:hover { background: #334155; border-color: #475569; }
+  .controls button.primary { background: #3b82f6; border-color: #3b82f6; }
+  .controls button.primary:hover { background: #2563eb; }
+  .info { color: #64748b; font-size: 13px; text-align: center; max-width: 600px; line-height: 1.6; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: #64748b; }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 2px; }
+  select {
+    padding: 10px 16px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #1e293b;
+    color: #e2e8f0;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+  }
+</style>
+</head>
+<body>
+<h1>Algorithm Visualizer</h1>
+
+<div class="tabs">
+  <button class="active" data-tab="sort">排序算法</button>
+  <button data-tab="path">路径搜索</button>
+</div>
+
+<!-- ═══ Sorting ═══ -->
+<div class="panel active" id="panel-sort">
+  <canvas id="sortCanvas" width="760" height="380"></canvas>
+  <div class="legend">
+    <span><span class="dot" style="background:#475569"></span>未排序</span>
+    <span><span class="dot" style="background:#f59e0b"></span>比较中</span>
+    <span><span class="dot" style="background:#ef4444"></span>交换中</span>
+    <span><span class="dot" style="background:#10b981"></span>已排好</span>
+  </div>
+  <div class="controls">
+    <select id="algoSelect">
+      <option value="quick">快速排序 Quick Sort</option>
+      <option value="merge">归并排序 Merge Sort</option>
+      <option value="heap">堆排序 Heap Sort</option>
+      <option value="bubble">冒泡排序 Bubble Sort</option>
+      <option value="insertion">插入排序 Insertion Sort</option>
+    </select>
+    <button id="sortShuffle">随机生成</button>
+    <button class="primary" id="sortStart">开始排序</button>
+  </div>
+  <p class="info" id="sortInfo">点击"开始排序"以上演所选算法</p>
+</div>
+
+<!-- ═══ Pathfinding ═══ -->
+<div class="panel" id="panel-path">
+  <canvas id="pathCanvas" width="600" height="400"></canvas>
+  <div class="legend">
+    <span><span class="dot" style="background:#1e293b;border:1px solid #334155"></span>空地</span>
+    <span><span class="dot" style="background:#475569"></span>墙壁</span>
+    <span><span class="dot" style="background:#3b82f6"></span>起点</span>
+    <span><span class="dot" style="background:#f59e0b"></span>终点</span>
+    <span><span class="dot" style="background:#a78bfa"></span>已探索</span>
+    <span><span class="dot" style="background:#10b981"></span>最短路径</span>
+  </div>
+  <div class="controls">
+    <select id="pathAlgo">
+      <option value="astar">A* Search</option>
+      <option value="dijkstra">Dijkstra</option>
+      <option value="bfs">BFS</option>
+      <option value="dfs">DFS</option>
+    </select>
+    <button id="pathShuffle">随机迷宫</button>
+    <button id="pathClear">重置墙壁</button>
+    <button class="primary" id="pathStart">开始搜索</button>
+  </div>
+  <p class="info">点击网格绘制/擦除墙壁。拖动起点(蓝)和终点(橙)</p>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// Sorting Visualizer
+// ═══════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('sortCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  let arr = [];
+  let N = 80;
+  let comparisons = 0;
+  let swaps = 0;
+  let running = false;
+  let speed = 30;
+
+  function reset() {
+    arr = Array.from({ length: N }, (_, i) => i + 1);
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    comparisons = 0;
+    swaps = 0;
+  }
+
+  function draw(highlights = {}) {
+    ctx.clearRect(0, 0, W, H);
+    const barW = W / arr.length;
+    const maxVal = Math.max(...arr);
+
+    for (let i = 0; i < arr.length; i++) {
+      const h = (arr[i] / maxVal) * (H - 20);
+      const x = i * barW;
+      const y = H - h;
+
+      let color = '#475569';
+      if (highlights.comparing && highlights.comparing.includes(i)) color = '#f59e0b';
+      if (highlights.swapping && highlights.swapping.includes(i)) color = '#ef4444';
+      if (highlights.sorted && highlights.sorted.includes(i)) color = '#10b981';
+      if (highlights.pivot === i) color = '#fff';
+
+      ctx.fillStyle = color;
+      ctx.fillRect(x + 1, y, barW - 2, h);
+    }
+
+    const info = document.getElementById('sortInfo');
+    info.textContent = `比较次数: ${comparisons}  |  交换次数: ${swaps}  |  元素数量: ${N}`;
+  }
+
+  function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  async function quickSort(arr, lo, hi) {
+    if (lo >= hi) return;
+    const pivotIdx = await partition(arr, lo, hi);
+    await quickSort(arr, lo, pivotIdx - 1);
+    await quickSort(arr, pivotIdx + 1, hi);
+  }
+
+  async function partition(arr, lo, hi) {
+    const pivot = arr[hi];
+    draw({ pivot: hi });
+    await sleep(speed);
+
+    let i = lo - 1;
+    for (let j = lo; j < hi; j++) {
+      draw({ comparing: [j, hi], sorted: range(0, lo - 1).concat(range(i + 1, j)) });
+      await sleep(speed);
+      comparisons++;
+
+      if (arr[j] < pivot) {
+        i++;
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+        swaps++;
+        draw({ swapping: [i, j], pivot: hi });
+        await sleep(speed);
+      }
+    }
+
+    [arr[i + 1], arr[hi]] = [arr[hi], arr[i + 1]];
+    swaps++;
+    draw({ swapping: [i + 1, hi] });
+    await sleep(speed);
+
+    draw({ sorted: range(0, i + 1) });
+    return i + 1;
+  }
+
+  async function mergeSort(arr, lo, hi) {
+    if (lo >= hi) return;
+    const mid = Math.floor((lo + hi) / 2);
+    await mergeSort(arr, lo, mid);
+    await mergeSort(arr, mid + 1, hi);
+    await merge(arr, lo, mid, hi);
+  }
+
+  async function merge(arr, lo, mid, hi) {
+    const left = arr.slice(lo, mid + 1);
+    const right = arr.slice(mid + 1, hi + 1);
+    let i = 0, j = 0, k = lo;
+
+    while (i < left.length && j < right.length) {
+      comparisons++;
+      draw({ comparing: [k] });
+      await sleep(speed);
+
+      if (left[i] <= right[j]) {
+        arr[k] = left[i];
+        i++;
+      } else {
+        arr[k] = right[j];
+        j++;
+      }
+      swaps++;
+      k++;
+    }
+
+    while (i < left.length) { arr[k] = left[i]; i++; k++; swaps++; }
+    while (j < right.length) { arr[k] = right[j]; j++; k++; swaps++; }
+
+    draw({ sorted: range(lo, hi) });
+    await sleep(speed);
+  }
+
+  async function heapSort(arr) {
+    const n = arr.length;
+
+    for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+      await heapify(arr, n, i);
+    }
+
+    for (let i = n - 1; i > 0; i--) {
+      [arr[0], arr[i]] = [arr[i], arr[0]];
+      swaps++;
+      draw({ swapping: [0, i], sorted: range(i, n - 1) });
+      await sleep(speed);
+      await heapify(arr, i, 0);
+    }
+    draw({ sorted: range(0, n - 1) });
+  }
+
+  async function heapify(arr, n, i) {
+    let largest = i;
+    const left = 2 * i + 1;
+    const right = 2 * i + 2;
+
+    if (left < n) { comparisons++; draw({ comparing: [largest, left] }); await sleep(speed); if (arr[left] > arr[largest]) largest = left; }
+    if (right < n) { comparisons++; draw({ comparing: [largest, right] }); await sleep(speed); if (arr[right] > arr[largest]) largest = right; }
+
+    if (largest !== i) {
+      [arr[i], arr[largest]] = [arr[largest], arr[i]];
+      swaps++;
+      draw({ swapping: [i, largest] });
+      await sleep(speed);
+      await heapify(arr, n, largest);
+    }
+  }
+
+  async function bubbleSort(arr) {
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = 0; j < arr.length - i - 1; j++) {
+        comparisons++;
+        draw({ comparing: [j, j + 1], sorted: range(arr.length - i, arr.length - 1) });
+        await sleep(speed / 3);
+        if (arr[j] > arr[j + 1]) {
+          [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+          swaps++;
+          draw({ swapping: [j, j + 1] });
+          await sleep(speed / 3);
+        }
+      }
+    }
+    draw({ sorted: range(0, arr.length - 1) });
+  }
+
+  async function insertionSort(arr) {
+    for (let i = 1; i < arr.length; i++) {
+      const key = arr[i];
+      let j = i - 1;
+      while (j >= 0 && arr[j] > key) {
+        comparisons++;
+        arr[j + 1] = arr[j];
+        swaps++;
+        draw({ comparing: [j, i], swapping: [j + 1] });
+        await sleep(speed / 3);
+        j--;
+      }
+      arr[j + 1] = key;
+      draw({ sorted: range(0, i) });
+      await sleep(speed / 3);
+    }
+    draw({ sorted: range(0, arr.length - 1) });
+  }
+
+  function range(a, b) {
+    const r = [];
+    for (let i = a; i <= b; i++) r.push(i);
+    return r;
+  }
+
+  async function startSorting(algo) {
+    if (running) return;
+    running = true;
+    comparisons = 0; swaps = 0;
+
+    switch (algo) {
+      case 'quick': await quickSort(arr, 0, arr.length - 1); break;
+      case 'merge': await mergeSort(arr, 0, arr.length - 1); break;
+      case 'heap':  await heapSort(arr); break;
+      case 'bubble': await bubbleSort(arr); break;
+      case 'insertion': await insertionSort(arr); break;
+    }
+
+    draw({ sorted: range(0, arr.length - 1) });
+    running = false;
+  }
+
+  document.getElementById('sortStart').onclick = () => startSorting(document.getElementById('algoSelect').value);
+  document.getElementById('sortShuffle').onclick = () => { if (!running) { reset(); draw(); } };
+
+  reset();
+  draw();
+})();
+
+// ═══════════════════════════════════════════
+// Pathfinding Visualizer
+// ═══════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('pathCanvas');
+  const ctx = canvas.getContext('2d');
+  const ROWS = 20, COLS = 30;
+  const cellW = canvas.width / COLS, cellH = canvas.height / ROWS;
+
+  let grid = [];
+  let start = { r: 10, c: 5 };
+  let end = { r: 10, c: 24 };
+  let running = false;
+  let dragging = null; // 'start' | 'end'
+  let drawing = false; // wall draw mode
+
+  function resetGrid(keepWalls = false) {
+    grid = Array.from({ length: ROWS }, (_, r) =>
+      Array.from({ length: COLS }, (_, c) => ({
+        r, c,
+        wall: keepWalls ? (grid[r]?.[c]?.wall || false) : false,
+        visited: false,
+        parent: null,
+        g: Infinity,
+        h: 0,
+        f: Infinity,
+      }))
+    );
+  }
+
+  function drawGrid(path = [], visited = []) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const cell = grid[r][c];
+        const x = c * cellW, y = r * cellH;
+
+        if (cell.wall) ctx.fillStyle = '#475569';
+        else if (r === start.r && c === start.c) ctx.fillStyle = '#3b82f6';
+        else if (r === end.r && c === end.c) ctx.fillStyle = '#f59e0b';
+        else if (visited.some(v => v.r === r && v.c === c)) ctx.fillStyle = '#a78bfa';
+        else ctx.fillStyle = '#1e293b';
+
+        ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
+      }
+    }
+
+    // Draw path
+    for (const p of path) {
+      ctx.fillStyle = '#10b981';
+      ctx.fillRect(p.c * cellW + 1, p.r * cellH + 1, cellW - 2, cellH - 2);
+    }
+
+    // Grid lines
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 0.5;
+    for (let r = 0; r <= ROWS; r++) { ctx.beginPath(); ctx.moveTo(0, r * cellH); ctx.lineTo(canvas.width, r * cellH); ctx.stroke(); }
+    for (let c = 0; c <= COLS; c++) { ctx.beginPath(); ctx.moveTo(c * cellW, 0); ctx.lineTo(c * cellW, canvas.height); ctx.stroke(); }
+  }
+
+  function getNeighbors(cell) {
+    const dirs = [[-1,0],[0,1],[1,0],[0,-1]];
+    return dirs
+      .map(([dr, dc]) => grid[cell.r + dr]?.[cell.c + dc])
+      .filter(n => n && !n.wall);
+  }
+
+  function reconstructPath(endCell) {
+    const path = [];
+    let curr = endCell;
+    while (curr) {
+      path.unshift(curr);
+      curr = curr.parent;
+    }
+    return path;
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async function dijkstra() {
+    const startCell = grid[start.r][start.c];
+    const endCell = grid[end.r][end.c];
+    startCell.g = 0;
+    const openSet = [startCell];
+    const visited = [];
+
+    while (openSet.length > 0) {
+      openSet.sort((a, b) => a.g - b.g);
+      const current = openSet.shift();
+      if (current.visited) continue;
+      current.visited = true;
+      visited.push(current);
+
+      drawGrid([], visited);
+      await sleep(10);
+
+      if (current === endCell) {
+        const path = reconstructPath(endCell);
+        drawGrid(path, visited);
+        return;
+      }
+
+      for (const n of getNeighbors(current)) {
+        const tentative = current.g + 1;
+        if (tentative < n.g) {
+          n.g = tentative;
+          n.parent = current;
+          if (!n.visited) openSet.push(n);
+        }
+      }
+    }
+  }
+
+  async function astar() {
+    const startCell = grid[start.r][start.c];
+    const endCell = grid[end.r][end.c];
+    startCell.g = 0;
+    startCell.h = heuristic(startCell, endCell);
+    startCell.f = startCell.h;
+    const openSet = [startCell];
+    const visited = [];
+
+    while (openSet.length > 0) {
+      openSet.sort((a, b) => a.f - b.f);
+      const current = openSet.shift();
+      if (current.visited) continue;
+      current.visited = true;
+      visited.push(current);
+
+      drawGrid([], visited);
+      await sleep(10);
+
+      if (current === endCell) {
+        const path = reconstructPath(endCell);
+        drawGrid(path, visited);
+        return;
+      }
+
+      for (const n of getNeighbors(current)) {
+        const tentative = current.g + 1;
+        if (tentative < n.g) {
+          n.g = tentative;
+          n.h = heuristic(n, endCell);
+          n.f = n.g + n.h;
+          n.parent = current;
+          if (!n.visited) openSet.push(n);
+        }
+      }
+    }
+  }
+
+  function heuristic(a, b) {
+    return Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
+  }
+
+  async function bfs() {
+    const startCell = grid[start.r][start.c];
+    const endCell = grid[end.r][end.c];
+    const queue = [startCell];
+    startCell.visited = true;
+    const visited = [startCell];
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      drawGrid([], visited);
+      await sleep(10);
+
+      if (current === endCell) {
+        const path = reconstructPath(endCell);
+        drawGrid(path, visited);
+        return;
+      }
+
+      for (const n of getNeighbors(current)) {
+        if (!n.visited) {
+          n.visited = true;
+          n.parent = current;
+          visited.push(n);
+          queue.push(n);
+        }
+      }
+    }
+  }
+
+  async function dfs() {
+    const startCell = grid[start.r][start.c];
+    const endCell = grid[end.r][end.c];
+    const stack = [startCell];
+    startCell.visited = true;
+    const visited = [startCell];
+
+    while (stack.length > 0) {
+      const current = stack.pop();
+      drawGrid([], visited);
+      await sleep(10);
+
+      if (current === endCell) {
+        const path = reconstructPath(endCell);
+        drawGrid(path, visited);
+        return;
+      }
+
+      for (const n of getNeighbors(current)) {
+        if (!n.visited) {
+          n.visited = true;
+          n.parent = current;
+          visited.push(n);
+          stack.push(n);
+        }
+      }
+    }
+  }
+
+  function randomMaze() {
+    resetGrid(false);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if ((r === start.r && c === start.c) || (r === end.r && c === end.c)) continue;
+        if (Math.random() < 0.28) grid[r][c].wall = true;
+      }
+    }
+    drawGrid();
+  }
+
+  async function startPathfinding() {
+    if (running) return;
+    running = true;
+    resetGrid(true);
+    drawGrid();
+
+    const algo = document.getElementById('pathAlgo').value;
+    switch (algo) {
+      case 'dijkstra': await dijkstra(); break;
+      case 'astar': await astar(); break;
+      case 'bfs': await bfs(); break;
+      case 'dfs': await dfs(); break;
+    }
+    running = false;
+  }
+
+  canvas.onmousedown = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const r = Math.floor(y / cellH);
+    const c = Math.floor(x / cellW);
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+
+    if (r === start.r && c === start.c) { dragging = 'start'; return; }
+    if (r === end.r && c === end.c) { dragging = 'end'; return; }
+    drawing = true;
+    grid[r][c].wall = !grid[r][c].wall;
+    drawGrid();
+  };
+
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const r = Math.floor(y / cellH);
+    const c = Math.floor(x / cellW);
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+
+    if (dragging === 'start') { start.r = r; start.c = c; drawGrid(); }
+    else if (dragging === 'end') { end.r = r; end.c = c; drawGrid(); }
+    else if (drawing) {
+      if (!(r === start.r && c === start.c) && !(r === end.r && c === end.c)) {
+        grid[r][c].wall = true;
+        drawGrid();
+      }
+    }
+  };
+
+  canvas.onmouseup = canvas.onmouseleave = () => {
+    dragging = null;
+    drawing = false;
+  };
+
+  document.getElementById('pathStart').onclick = startPathfinding;
+  document.getElementById('pathShuffle').onclick = randomMaze;
+  document.getElementById('pathClear').onclick = () => { resetGrid(false); drawGrid(); };
+
+  resetGrid(false);
+  drawGrid();
+})();
+
+// Tab switching
+document.querySelectorAll('.tabs button').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  };
+});
+</script>
+</body>
+</html>
