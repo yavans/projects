@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:blogdb
+    driver-class-name: org.h2.Driver
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  sql:
+    init:
+      mode: always
+
+jwt:
+  secret: dGhpc0lzQVZlcnlMb25nU2VjcmV0S2V5Rm9ySldUVG9rZW5HZW5lcmF0aW9u
+  expiration-ms: 604800000
+
+server:
+  port: 8080
