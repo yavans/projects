@@ -1,0 +1,15 @@
+{
+  "name": "fullstack-blog",
+  "version": "1.0.0",
+  "description": "A full-stack blog platform with Express, JWT auth, and vanilla JS SPA frontend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "marked": "^15.0.12"
+  }
+}

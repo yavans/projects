@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FullStack Blog</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header id="app-header">
+    <div class="header-inner">
+      <a href="#/" class="logo">FullStack Blog</a>
+      <nav id="nav-links">
+        <a href="#/">Home</a>
+        <a href="#/admin" class="admin-link" style="display:none;">Admin</a>
+        <a href="#/login" id="nav-login">Login</a>
+        <a href="#/register" id="nav-register">Register</a>
+        <a href="#" id="nav-logout" style="display:none;" onclick="App.logout()">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="app-main"></main>
+  <div id="toast-container"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

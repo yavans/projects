@@ -1,6 +1,18 @@
 # Projects
 
-个人项目合集，涵盖前端框架原理、算法可视化、游戏开发与品牌页面设计。
+个人项目合集，涵盖全栈应用、前端框架原理、算法可视化与游戏开发。
+
+---
+
+## 📝 FullStack Blog — 全栈博客平台
+
+Express + JWT 认证 + Vanilla JS SPA 全栈博客。
+
+- **后端**：Express 5 RESTful API，JWT 认证（bcryptjs），JSON 文件持久化
+- **前端**：Vanilla JS SPA（Hash Router），暗色主题响应式 UI
+- **功能**：用户注册/登录 · 文章 CRUD（Markdown）· 评论系统 · 标签分类 · 分页 · Admin 后台
+
+→ [源码](fullstack-blog/) | 本地运行：`cd fullstack-blog && npm install && npm start`
 
 ---
 
