@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniRouter — SPA 路由</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+    .app { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 1.6rem; color: #a78bfa; margin-bottom: 4px; }
+    .subtitle { font-size: 0.85rem; color: #94a3b8; margin-bottom: 24px; }
+    nav { display: flex; gap: 4px; margin-bottom: 24px; flex-wrap: wrap; }
+    nav a { padding: 8px 16px; border-radius: 8px; color: #cbd5e1; text-decoration: none; font-size: 0.9rem; background: #1e293b; cursor: pointer; border: 1px solid #334155; transition: all 0.15s; }
+    nav a:hover { background: #334155; }
+    nav a.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+    .page { background: #1e293b; border-radius: 12px; padding: 32px; border: 1px solid #334155; min-height: 200px; }
+    .page h2 { font-size: 1.3rem; color: #cbd5e1; margin-bottom: 12px; }
+    .page p { color: #94a3b8; line-height: 1.7; margin-bottom: 8px; }
+    .info { background: #0f172a; border-radius: 8px; padding: 16px; margin-top: 20px; }
+    .info-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.85rem; border-bottom: 1px solid #1e293b; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #64748b; }
+    .info-value { color: #a78bfa; font-family: 'JetBrains Mono', monospace; }
+    .auth-toast { position: fixed; top: 20px; right: 20px; background: #f59e0b; color: #0f172a; padding: 12px 20px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; animation: slideIn 0.3s ease; }
+    @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>MiniRouter</h1>
+    <p class="subtitle">Hash & History mode SPA router — params / guards / navigation</p>
+
+    <nav id="nav">
+      <a data-link="/">Home</a>
+      <a data-link="/about">About</a>
+      <a data-link="/user/alice">User: Alice</a>
+      <a data-link="/user/bob">User: Bob</a>
+      <a data-link="/admin">Admin (guarded)</a>
+    </nav>
+
+    <div class="page" id="page">
+      <h2 id="page-title">Loading...</h2>
+      <div id="page-content"></div>
+      <div class="info">
+        <div class="info-row"><span class="info-label">Full Path</span><span class="info-value" id="info-path">—</span></div>
+        <div class="info-row"><span class="info-label">Params</span><span class="info-value" id="info-params">—</span></div>
+        <div class="info-row"><span class="info-label">Query</span><span class="info-value" id="info-query">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-toast" id="toast" style="display:none;"></div>
+
+  <script type="module">
+    import { createRouter } from './router.js';
+
+    const pages = {
+      home: {
+        title: 'Home',
+        render: () => `<p>Welcome to MiniRouter — a tiny SPA router built from scratch.</p><p>Click the links above to navigate between pages. The "Admin" link demonstrates a navigation guard.</p>`
+      },
+      about: {
+        title: 'About',
+        render: () => `<p>MiniRouter supports two modes:</p><p><strong>Hash mode</strong> — uses <code>#/path</code> after the URL. Great for static hosting (GitHub Pages).</p><p><strong>History mode</strong> — uses the HTML5 History API for clean URLs. Requires server-side fallback.</p>`
+      },
+      user: {
+        title: 'User Profile',
+        render: (params) => `<p>Viewing profile for user: <strong style="color:#a78bfa;">${params.id}</strong></p><p>This page uses a dynamic route <code>/user/:id</code>. The <code>:id</code> param is extracted from the URL.</p>`
+      },
+      admin: {
+        title: 'Admin Panel',
+        render: () => `<p>If you can see this, the navigation guard let you through.</p><p>Admin panel controls would be here.</p>`
+      },
+      notFound: {
+        title: '404 — Not Found',
+        render: () => `<p>The page you requested does not exist.</p>`
+      }
+    };
+
+    const router = createRouter({
+      mode: 'hash',
+      routes: [
+        { path: '/' },
+        { path: '/about' },
+        { path: '/user/:id' },
+        { path: '/admin' },
+        { path: '*' }
+      ]
+    });
+
+    // Guard: protect /admin
+    router.beforeEach((to, from) => {
+      if (to.path.startsWith('/admin')) {
+        const granted = confirm('Admin area requires confirmation. Continue?');
+        if (!granted) {
+          showToast('Navigation to Admin was blocked by a guard');
+          return false;
+        }
+      }
+    });
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 2500);
+    }
+
+    // Listen to route changes
+    window.addEventListener('minirouter:change', (e) => {
+      const { path, params, route } = e.detail;
+      const pathKey = path.split('?')[0];
+      let page;
+
+      if (pathKey === '/') page = pages.home;
+      else if (pathKey === '/about') page = pages.about;
+      else if (pathKey.startsWith('/user/')) page = pages.user;
+      else if (pathKey === '/admin') page = pages.admin;
+      else page = pages.notFound;
+
+      document.getElementById('page-title').textContent = page.title;
+      document.getElementById('page-content').innerHTML = page.render(params);
+
+      // Update nav active state
+      document.querySelectorAll('nav a').forEach(a => {
+        a.classList.toggle('active', a.getAttribute('data-link') === path);
+      });
+
+      // Update info panel
+      document.getElementById('info-path').textContent = path;
+      document.getElementById('info-params').textContent = JSON.stringify(params);
+      document.getElementById('info-query').textContent = JSON.stringify(e.detail.query);
+    });
+
+    router.init();
+  </script>
+</body>
+</html>

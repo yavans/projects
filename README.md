@@ -80,6 +80,45 @@ Canvas 动画可视化排序算法与路径搜索。
 
 ---
 
+## 🎯 MiniVue — Proxy 响应式系统
+
+从零实现 Vue 3 风格 Proxy 响应式系统（~180 行）。
+
+- **reactive** — Proxy 深层递归响应式代理
+- **effect** — 自动依赖收集 + 变化时重新执行
+- **computed** — 惰性求值 + 缓存
+- **ref / watch** — 原始值包装 + 侦听器
+
+→ [源码](mini-vue/) | [在线预览](https://yavans.github.io/projects/mini-vue/index.html)
+
+---
+
+## 🧭 MiniRouter — SPA 前端路由
+
+从零实现 SPA 路由器（~160 行），Hash / History 双模式。
+
+- **动态路由匹配** — `/user/:id` 参数提取
+- **导航守卫** — beforeEach 拦截 + 重定向
+- **声明式导航** — data-link 属性拦截
+- **Query 解析** — URL 查询参数自动提取
+
+→ [源码](mini-router/) | [在线预览](https://yavans.github.io/projects/mini-router/index.html)
+
+---
+
+## 🔄 MiniObservable — 响应式编程
+
+从零实现 RxJS 风格 Observable 与操作符（~170 行）。
+
+- **Observable + Observer** — 推送式数据流
+- **Pipe 模式** — 链式操作符组合
+- **操作符** — map / filter / take / debounceTime / merge
+- **Subject** — 多播 + fromEvent / interval
+
+→ [源码](mini-observable/) | [在线预览](https://yavans.github.io/projects/mini-observable/index.html)
+
+---
+
 ## 🎮 Tank Battle — 双人坦克对战
 
 Canvas 实时双人对战游戏，同键盘操作。

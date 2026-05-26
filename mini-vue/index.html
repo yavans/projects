@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniVue — Proxy 响应式系统</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; justify-content: center; padding: 40px 20px; }
+    .app { max-width: 480px; width: 100%; }
+    h1 { font-size: 1.6rem; margin-bottom: 8px; color: #38bdf8; }
+    .subtitle { font-size: 0.85rem; color: #94a3b8; margin-bottom: 32px; }
+    .card { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 16px; border: 1px solid #334155; }
+    .card h2 { font-size: 1rem; color: #cbd5e1; margin-bottom: 16px; }
+    .counter { display: flex; align-items: center; gap: 16px; }
+    .counter button { width: 40px; height: 40px; border-radius: 8px; border: 1px solid #475569; background: #334155; color: #e2e8f0; font-size: 1.2rem; cursor: pointer; transition: background 0.15s; }
+    .counter button:hover { background: #475569; }
+    .counter .val { font-size: 2rem; font-weight: 700; min-width: 60px; text-align: center; color: #38bdf8; }
+    .stat { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 0.9rem; }
+    .stat:last-child { border-bottom: none; }
+    .stat-label { color: #94a3b8; }
+    .stat-value { color: #facc15; font-weight: 600; }
+    .log { background: #0f172a; border-radius: 8px; padding: 12px; max-height: 150px; overflow-y: auto; font-size: 0.78rem; color: #a5f3fc; line-height: 1.6; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+    .log-entry { opacity: 0.6; animation: fadeIn 0.3s ease forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+    .input-row { display: flex; gap: 8px; }
+    .input-row input { flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 0.9rem; outline: none; }
+    .input-row input:focus { border-color: #38bdf8; }
+    .input-row button { padding: 10px 20px; border-radius: 8px; border: none; background: #38bdf8; color: #0f172a; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+    .input-row button:hover { background: #7dd3fc; }
+    ul { list-style: none; }
+    ul li { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #334155; font-size: 0.9rem; }
+    ul li:last-child { border-bottom: none; }
+    ul li button { background: none; border: none; color: #f87171; cursor: pointer; font-size: 1rem; padding: 2px 8px; }
+    ul li button:hover { color: #fca5a5; }
+    .empty { text-align: center; color: #64748b; padding: 16px 0; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <h1>MiniVue</h1>
+    <p class="subtitle">Proxy-based reactive system — reactive / effect / computed / watch</p>
+
+    <div class="card">
+      <h2>Counter</h2>
+      <div class="counter">
+        <button id="btn-dec">-</button>
+        <span class="val" id="count-display">0</span>
+        <button id="btn-inc">+</button>
+      </div>
+      <div style="margin-top: 16px;">
+        <div class="stat"><span class="stat-label">Computed (×2)</span><span class="stat-value" id="doubled-display">0</span></div>
+        <div class="stat"><span class="stat-label">Computed (²)</span><span class="stat-value" id="squared-display">0</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Todo List</h2>
+      <div class="input-row">
+        <input type="text" id="todo-input" placeholder="Add a todo..." />
+        <button id="btn-add">Add</button>
+      </div>
+      <ul id="todo-list"></ul>
+    </div>
+
+    <div class="card">
+      <h2>Watcher Log</h2>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { reactive, effect, computed, watch } from './reactive.js';
+
+    const state = reactive({
+      count: 0,
+      todos: []
+    });
+
+    const doubled = computed(() => state.count * 2);
+    const squared = computed(() => state.count * state.count);
+
+    // DOM refs
+    const $count = document.getElementById('count-display');
+    const $doubled = document.getElementById('doubled-display');
+    const $squared = document.getElementById('squared-display');
+    const $todoList = document.getElementById('todo-list');
+    const $todoInput = document.getElementById('todo-input');
+    const $log = document.getElementById('log');
+
+    function addLog(msg) {
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      $log.prepend(div);
+      if ($log.children.length > 20) $log.lastChild.remove();
+    }
+
+    // Bind reactive state to DOM
+    effect(() => {
+      $count.textContent = state.count;
+      $doubled.textContent = doubled.value;
+      $squared.textContent = squared.value;
+    });
+
+    effect(() => {
+      $todoList.innerHTML = '';
+      if (state.todos.length === 0) {
+        $todoList.innerHTML = '<li class="empty">No todos yet</li>';
+        return;
+      }
+      state.todos.forEach((todo, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${escapeHtml(todo)}</span><button data-idx="${i}">×</button>`;
+        li.querySelector('button').onclick = () => {
+          state.todos.splice(i, 1);
+        };
+        $todoList.appendChild(li);
+      });
+    });
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    // Watch count changes
+    watch(
+      () => state.count,
+      (newVal, oldVal) => {
+        addLog(`Count: ${oldVal} → ${newVal}`);
+      }
+    );
+
+    // Watch todos length
+    watch(
+      () => state.todos.length,
+      (newLen, oldLen) => {
+        addLog(`Todos: ${oldLen ?? 0} → ${newLen} items`);
+      }
+    );
+
+    // Event handlers
+    document.getElementById('btn-inc').onclick = () => state.count++;
+    document.getElementById('btn-dec').onclick = () => state.count--;
+
+    document.getElementById('btn-add').onclick = () => {
+      const val = $todoInput.value.trim();
+      if (val) {
+        state.todos.push(val);
+        $todoInput.value = '';
+        $todoInput.focus();
+      }
+    };
+    $todoInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btn-add').click();
+    });
+
+    addLog('MiniVue initialized');
+  </script>
+</body>
+</html>
