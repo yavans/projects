@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodePlay — Live Code Playground</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="toolbar">
+    <span class="logo">CodePlay</span>
+    <div class="toolbar-center">
+      <select id="template-select">
+        <option value="">— Templates —</option>
+        <option value="hello">Hello World</option>
+        <option value="counter">Counter App</option>
+        <option value="todo">Todo List</option>
+        <option value="canvas">Canvas Animation</option>
+        <option value="fetch">Fetch API Demo</option>
+      </select>
+      <button id="btn-run" title="Run (Ctrl+S)">▶ Run</button>
+    </div>
+    <div class="toolbar-right">
+      <button id="btn-download" title="Download HTML">⬇ Download</button>
+      <button id="btn-share" title="Copy share URL">🔗 Share</button>
+      <button id="btn-reset" title="Reset all">↺ Reset</button>
+    </div>
+  </header>
+
+  <div id="main-container">
+    <!-- Resize handle vertical -->
+    <div id="editors-pane">
+      <div class="editor-panel" id="panel-html">
+        <div class="editor-header"><span class="dot html-dot"></span>HTML</div>
+        <textarea id="editor-html" spellcheck="false"></textarea>
+      </div>
+      <div class="gutter gutter-v" id="gutter-v1"></div>
+      <div class="editor-panel" id="panel-css">
+        <div class="editor-header"><span class="dot css-dot"></span>CSS</div>
+        <textarea id="editor-css" spellcheck="false"></textarea>
+      </div>
+      <div class="gutter gutter-v" id="gutter-v2"></div>
+      <div class="editor-panel" id="panel-js">
+        <div class="editor-header"><span class="dot js-dot"></span>JavaScript</div>
+        <textarea id="editor-js" spellcheck="false"></textarea>
+      </div>
+    </div>
+
+    <!-- Horizontal resize -->
+    <div class="gutter gutter-h" id="gutter-h"></div>
+
+    <div id="output-pane">
+      <div class="output-header">
+        <span>Preview</span>
+        <button id="btn-console-toggle" class="btn-sm">Console ▾</button>
+      </div>
+      <iframe id="preview-frame" sandbox="allow-scripts allow-modals allow-forms allow-same-origin"></iframe>
+      <div id="console-panel">
+        <div class="console-entry" style="color:var(--muted);">// Console output appears here...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -4,6 +4,20 @@
 
 ---
 
+## 🎨 CodePlay — 在线代码游乐场
+
+类似 CodePen 的实时代码编辑器。HTML/CSS/JS 三栏编辑 + 实时预览 + Console。
+
+- **三栏编辑器** — 可拖拽调整面板大小，Tab 缩进，自动保存
+- **实时预览** — iframe 沙箱隔离，250ms 防抖刷新
+- **Console 面板** — 捕获 log/error/warn + 运行时错误
+- **5 套模板** — Hello World · Counter · Todo · Canvas 动画 · Fetch API
+- **下载 & 分享** — 一键导出 HTML 文件 / URL hash 编码分享
+
+→ [源码](live-code-playground/) | [在线使用](https://yavans.github.io/projects/live-code-playground/index.html)
+
+---
+
 ## 📝 FullStack Blog — 全栈博客平台
 
 Express + JWT 认证 + Vanilla JS SPA 全栈博客。
