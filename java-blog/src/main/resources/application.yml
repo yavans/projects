@@ -14,10 +14,16 @@ spring:
     properties:
       hibernate:
         format_sql: true
-
   sql:
     init:
       mode: always
+  cache:
+    type: caffeine
+    caffeine:
+      spec: expireAfterWrite=5m,maximumSize=100
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
 
 jwt:
   secret: dGhpc0lzQVZlcnlMb25nU2VjcmV0S2V5Rm9ySldUVG9rZW5HZW5lcmF0aW9u

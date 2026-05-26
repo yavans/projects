@@ -8,6 +8,8 @@ import com.blog.exception.BusinessException;
 import com.blog.repository.CommentRepository;
 import com.blog.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,6 +22,7 @@ public class CommentService {
     private final PostRepository postRepo;
     private final UserService userService;
 
+    @CacheEvict(value = "comments", allEntries = true)
     public Comment create(Long postId, CommentDto.CreateRequest req, Long userId) {
         Post post = postRepo.findById(postId)
                 .orElseThrow(() -> BusinessException.notFound("文章不存在"));
@@ -32,6 +35,7 @@ public class CommentService {
         return commentRepo.save(comment);
     }
 
+    @CacheEvict(value = "comments", allEntries = true)
     public void delete(Long id, Long userId) {
         Comment comment = commentRepo.findById(id)
                 .orElseThrow(() -> BusinessException.notFound("评论不存在"));
@@ -41,6 +45,7 @@ public class CommentService {
         commentRepo.delete(comment);
     }
 
+    @Cacheable(value = "comments", key = "#postId")
     public List<Comment> getByPostId(Long postId) {
         return commentRepo.findByPostIdOrderByCreatedAtAsc(postId);
     }
