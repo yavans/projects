@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanban Board — 拖拽看板</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    max-width: 1200px; margin: 0 auto 24px;
+  }
+  .header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; }
+  .header .actions { display: flex; gap: 8px; }
+  .header button {
+    padding: 8px 18px; border: 1px solid #334155; border-radius: 8px;
+    background: #1e293b; color: #e2e8f0; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .header button:hover { background: #334155; }
+  .header button.primary { background: #3b82f6; border-color: #3b82f6; }
+  .header button.primary:hover { background: #2563eb; }
+
+  .board {
+    display: flex; gap: 16px; max-width: 1200px; margin: 0 auto;
+    overflow-x: auto; padding-bottom: 8px; align-items: flex-start;
+  }
+  .column {
+    min-width: 280px; max-width: 280px;
+    background: #1e293b; border-radius: 12px;
+    display: flex; flex-direction: column;
+  }
+  .col-header {
+    padding: 14px 16px; display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #334155;
+  }
+  .col-header h3 { font-size: 14px; font-weight: 600; }
+  .col-header .count {
+    background: #334155; color: #94a3b8; font-size: 11px;
+    padding: 2px 8px; border-radius: 10px; font-weight: 600;
+  }
+  .col-cards {
+    padding: 8px; flex: 1; min-height: 80px;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: background 0.2s;
+  }
+  .col-cards.drag-over { background: #1a2940; }
+
+  .card {
+    background: #0f172a; border: 1px solid #1e293b; border-radius: 8px;
+    padding: 12px 14px; cursor: grab; transition: box-shadow 0.2s, transform 0.15s;
+    position: relative;
+  }
+  .card:hover { border-color: #334155; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .card:active { cursor: grabbing; }
+  .card.dragging { opacity: 0.4; transform: scale(0.95); }
+  .card .card-title { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .card .card-desc { font-size: 12px; color: #94a3b8; margin-bottom: 8px; line-height: 1.4; }
+  .card .card-meta { display: flex; gap: 8px; align-items: center; font-size: 11px; color: #64748b; }
+  .card .tag {
+    padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 600;
+  }
+  .tag-bug { background: #7f1d1d; color: #fca5a5; }
+  .tag-feature { background: #064e3b; color: #6ee7b7; }
+  .tag-chore { background: #1e3a5f; color: #93c5fd; }
+  .card .delete-card {
+    position: absolute; top: 6px; right: 8px;
+    width: 22px; height: 22px; border: none; background: transparent;
+    color: #475569; font-size: 16px; cursor: pointer; border-radius: 4px;
+    display: none; align-items: center; justify-content: center;
+  }
+  .card:hover .delete-card { display: flex; }
+  .card .delete-card:hover { color: #ef4444; background: #450a0a; }
+
+  .add-card-btn {
+    width: 100%; padding: 10px; border: 1px dashed #334155; border-radius: 8px;
+    background: transparent; color: #64748b; font-size: 13px; cursor: pointer; font-family: inherit;
+    transition: all 0.2s;
+  }
+  .add-card-btn:hover { border-color: #475569; color: #94a3b8; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal {
+    background: #1e293b; border-radius: 12px; padding: 24px;
+    width: 380px; max-width: 90vw;
+  }
+  .modal h3 { font-size: 16px; margin-bottom: 16px; }
+  .modal input, .modal textarea, .modal select {
+    width: 100%; padding: 10px 14px; border: 1px solid #334155; border-radius: 8px;
+    background: #0f172a; color: #e2e8f0; font-size: 14px; outline: none; font-family: inherit;
+    margin-bottom: 12px; resize: vertical;
+  }
+  .modal input:focus, .modal textarea:focus, .modal select:focus { border-color: #3b82f6; }
+  .modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal .btn-row button {
+    padding: 8px 20px; border-radius: 8px; border: none; font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 600;
+  }
+  .modal .btn-cancel { background: #334155; color: #e2e8f0; }
+  .modal .btn-save { background: #3b82f6; color: #fff; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Kanban Board</h1>
+  <div class="actions">
+    <button id="resetBtn">重置演示数据</button>
+    <button class="primary" id="newColBtn">+ 新建列表</button>
+  </div>
+</div>
+
+<div class="board" id="board"></div>
+
+<div class="modal-overlay hidden" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">新建卡片</h3>
+    <input id="modalInput" placeholder="标题" maxlength="60">
+    <textarea id="modalDesc" placeholder="描述（可选）" rows="2" maxlength="200"></textarea>
+    <select id="modalTag">
+      <option value="feature">Feature</option>
+      <option value="bug">Bug</option>
+      <option value="chore">Chore</option>
+    </select>
+    <div class="btn-row">
+      <button class="btn-cancel" id="modalCancel">取消</button>
+      <button class="btn-save" id="modalSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'kanban_data';
+
+  const defaultData = [
+    { id: 'col-1', title: '待办', cards: [
+      { id: 'c1', title: '用户登录页面重构', desc: '将现有登录页迁移至新的设计系统组件', tag: 'feature' },
+      { id: 'c2', title: '修复分页器边界条件', desc: '当数据为空时，分页器显示 NaN', tag: 'bug' },
+    ]},
+    { id: 'col-2', title: '进行中', cards: [
+      { id: 'c3', title: '实现虚拟滚动列表', desc: '支持10w+行数据流畅滚动，DOM回收复用', tag: 'feature' },
+    ]},
+    { id: 'col-3', title: '已完成', cards: [
+      { id: 'c4', title: '升级依赖版本', desc: 'React 18 → 19, Vite 5 → 6', tag: 'chore' },
+      { id: 'c5', title: '补全单元测试覆盖', desc: 'utils模块覆盖率从62%提升至91%', tag: 'chore' },
+    ]},
+  ];
+
+  let boardData = [];
+  let dragCard = null;
+  let dragFromCol = null;
+  let modalCallback = null;
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      boardData = raw ? JSON.parse(raw) : defaultData;
+    } catch { boardData = defaultData; }
+  }
+
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(boardData)); }
+
+  function render() {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+
+    boardData.forEach(col => {
+      const colEl = document.createElement('div');
+      colEl.className = 'column';
+
+      colEl.innerHTML = `
+        <div class="col-header">
+          <h3>${esc(col.title)}</h3>
+          <span class="count">${col.cards.length}</span>
+        </div>
+        <div class="col-cards" data-col="${col.id}">
+          ${col.cards.map(c => `
+            <div class="card" draggable="true" data-card="${c.id}" data-col="${col.id}">
+              <button class="delete-card" data-delete="${c.id}" data-col="${col.id}">&times;</button>
+              <div class="card-title">${esc(c.title)}</div>
+              ${c.desc ? `<div class="card-desc">${esc(c.desc)}</div>` : ''}
+              <div class="card-meta">
+                <span class="tag tag-${c.tag}">${c.tag}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <button class="add-card-btn" data-col="${col.id}">+ 添加卡片</button>
+      `;
+
+      board.appendChild(colEl);
+    });
+
+    // Drag events
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('dragstart', handleDragStart);
+      card.addEventListener('dragend', handleDragEnd);
+    });
+
+    document.querySelectorAll('.col-cards').forEach(zone => {
+      zone.addEventListener('dragover', handleDragOver);
+      zone.addEventListener('dragleave', handleDragLeave);
+      zone.addEventListener('drop', handleDrop);
+    });
+
+    // Add card buttons
+    document.querySelectorAll('.add-card-btn').forEach(btn => {
+      btn.onclick = () => openModal('新建卡片', null, (data) => {
+        const col = boardData.find(c => c.id === btn.dataset.col);
+        if (col) {
+          col.cards.push({ id: 'c' + Date.now(), ...data });
+          save(); render();
+        }
+      });
+    });
+
+    // Delete buttons
+    document.querySelectorAll('.delete-card').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const colId = btn.dataset.col;
+        const cardId = btn.dataset.delete;
+        const col = boardData.find(c => c.id === colId);
+        if (col) {
+          col.cards = col.cards.filter(c => c.id !== cardId);
+          save(); render();
+        }
+      };
+    });
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // ── Drag & Drop ──
+  function handleDragStart(e) {
+    dragCard = e.target.dataset.card;
+    dragFromCol = e.target.dataset.col;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragCard);
+  }
+
+  function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    dragCard = null;
+    dragFromCol = null;
+    document.querySelectorAll('.col-cards').forEach(z => z.classList.remove('drag-over'));
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drag-over');
+  }
+
+  function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    const toColId = e.currentTarget.dataset.col;
+    if (!dragCard || !dragFromCol) return;
+
+    const fromCol = boardData.find(c => c.id === dragFromCol);
+    const toCol = boardData.find(c => c.id === toColId);
+    if (!fromCol || !toCol) return;
+
+    const cardIdx = fromCol.cards.findIndex(c => c.id === dragCard);
+    if (cardIdx === -1) return;
+
+    const [card] = fromCol.cards.splice(cardIdx, 1);
+
+    // Insert at drop position (before the closest card)
+    const dropTarget = e.target.closest('.card');
+    if (dropTarget && dropTarget.dataset.col === toColId) {
+      const targetIdx = toCol.cards.findIndex(c => c.id === dropTarget.dataset.card);
+      toCol.cards.splice(targetIdx, 0, card);
+    } else {
+      toCol.cards.push(card);
+    }
+
+    save(); render();
+  }
+
+  // ── Modal ──
+  function openModal(title, defaults, cb) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalInput').value = defaults?.title || '';
+    document.getElementById('modalDesc').value = defaults?.desc || '';
+    document.getElementById('modalTag').value = defaults?.tag || 'feature';
+    document.getElementById('modal').classList.remove('hidden');
+    modalCallback = cb;
+  }
+
+  document.getElementById('modalCancel').onclick = () => {
+    document.getElementById('modal').classList.add('hidden');
+    modalCallback = null;
+  };
+
+  document.getElementById('modalSave').onclick = () => {
+    const title = document.getElementById('modalInput').value.trim();
+    if (!title) return;
+    const data = {
+      title,
+      desc: document.getElementById('modalDesc').value.trim(),
+      tag: document.getElementById('modalTag').value,
+    };
+    if (modalCallback) modalCallback(data);
+    document.getElementById('modal').classList.add('hidden');
+    modalCallback = null;
+  };
+
+  document.getElementById('modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      document.getElementById('modal').classList.add('hidden');
+      modalCallback = null;
+    }
+  });
+
+  document.getElementById('resetBtn').onclick = () => {
+    boardData = defaultData.map(c => ({ ...c, cards: c.cards.map(c => ({ ...c })) }));
+    save(); render();
+  };
+
+  document.getElementById('newColBtn').onclick = () => {
+    boardData.push({ id: 'col-' + Date.now(), title: '新建列表', cards: [] });
+    save(); render();
+  };
+
+  // Init
+  load();
+  render();
+</script>
+</body>
+</html>

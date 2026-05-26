@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtual Scroller — 10万条数据流畅滚动</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f0f2f5;
+    display: flex; justify-content: center; padding: 40px 16px;
+    min-height: 100vh;
+  }
+  .app { max-width: 560px; width: 100%; }
+  .header { margin-bottom: 20px; }
+  .header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+  .header .stats { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+  .header .stats span { color: #3b82f6; font-weight: 600; }
+
+  .scroller-wrapper {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    overflow: hidden;
+  }
+  .scroller-container {
+    overflow-y: auto;
+    height: 500px;
+    position: relative;
+    will-change: scroll-position;
+  }
+  .scroller-phantom {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    pointer-events: none;
+  }
+  .scroller-content {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+  }
+
+  .row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 16px;
+    border-bottom: 1px solid #f1f5f9;
+    position: absolute;
+    left: 0; right: 0;
+    overflow: hidden;
+  }
+  .row:hover { background: #f8fafc; }
+  .row .idx {
+    width: 44px; text-align: right;
+    font-size: 12px; color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+  .row .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; color: #fff;
+  }
+  .row .name { font-size: 14px; font-weight: 500; flex: 1; }
+  .row .email { font-size: 12px; color: #94a3b8; }
+
+  .controls {
+    display: flex; gap: 12px; margin-top: 20px;
+    flex-wrap: wrap; align-items: center;
+  }
+  .controls input {
+    width: 120px; padding: 8px 14px;
+    border: 2px solid #e2e8f0; border-radius: 10px;
+    font-size: 14px; outline: none; font-family: inherit;
+  }
+  .controls input:focus { border-color: #3b82f6; }
+  .controls button {
+    padding: 8px 18px; background: #3b82f6; color: #fff;
+    border: none; border-radius: 10px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .controls button:hover { background: #2563eb; }
+  .controls .hint { color: #94a3b8; font-size: 12px; }
+
+  .perf-bar {
+    margin-top: 12px; height: 4px; border-radius: 2px;
+    background: #e2e8f0; overflow: hidden;
+  }
+  .perf-bar .fill {
+    height: 100%; background: #10b981;
+    transition: width 0.3s;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Virtual Scroller</h1>
+    <p class="stats">
+      总数据 <span id="totalCount">100,000</span> 条 |
+      DOM 节点仅 <span id="domCount">0</span> 个 |
+      渲染耗时 <span id="renderTime">0</span>ms
+    </p>
+  </div>
+
+  <div class="scroller-wrapper">
+    <div class="scroller-container" id="scroller">
+      <div class="scroller-phantom" id="phantom"></div>
+      <div class="scroller-content" id="content"></div>
+    </div>
+  </div>
+
+  <div class="perf-bar"><div class="fill" id="perfFill" style="width:0%"></div></div>
+
+  <div class="controls">
+    <input id="countInput" type="number" value="100000" min="100" max="1000000" step="1000">
+    <button id="regenBtn">生成数据</button>
+    <button id="jumpBtn">跳转到 50,000</button>
+    <span class="hint" id="fpsHint"></span>
+  </div>
+</div>
+
+<script>
+  /**
+   * VirtualScroller
+   *
+   * 核心思路：
+   * 1. 只渲染可视区域内的 DOM 节点（+少量缓冲区）
+   * 2. 滚动时复用已存在的 DOM，更新内容而非销毁重建
+   * 3. 通过绝对定位 + transform 将每行放到正确位置
+   * 4. phantom 元素撑开总高度，保证原生滚动条行为
+   */
+
+  class VirtualScroller {
+    constructor(container, { itemHeight, data, renderItem, overscan = 5 }) {
+      this.container = container;
+      this.itemHeight = itemHeight;
+      this.data = data;
+      this.renderItem = renderItem;
+      this.overscan = overscan;
+
+      this.phantom = container.querySelector('.scroller-phantom');
+      this.content = container.querySelector('.scroller-content');
+      this.rows = new Map(); // index → DOM element
+      this.visibleRange = { start: 0, end: 0 };
+      this.rafId = null;
+
+      this._updatePhantom();
+      this._render();
+      this.container.addEventListener('scroll', () => this._scheduleRender(), { passive: true });
+      window.addEventListener('resize', () => this._render());
+    }
+
+    setData(data) {
+      this.data = data;
+      this._clearAll();
+      this._updatePhantom();
+      this._render();
+      this.container.scrollTop = 0;
+    }
+
+    scrollToIndex(index) {
+      this.container.scrollTop = index * this.itemHeight;
+    }
+
+    _updatePhantom() {
+      this.phantom.style.height = this.data.length * this.itemHeight + 'px';
+    }
+
+    _scheduleRender() {
+      if (this.rafId) return;
+      this.rafId = requestAnimationFrame(() => {
+        this.rafId = null;
+        this._render();
+      });
+    }
+
+    _render() {
+      const t0 = performance.now();
+      const scrollTop = this.container.scrollTop;
+      const viewHeight = this.container.clientHeight;
+      const total = this.data.length;
+
+      // Calculate visible range with overscan
+      const start = Math.max(0, Math.floor(scrollTop / this.itemHeight) - this.overscan);
+      const end = Math.min(total, Math.ceil((scrollTop + viewHeight) / this.itemHeight) + this.overscan);
+
+      // Remove rows outside visible range
+      for (const [idx, row] of this.rows) {
+        if (idx < start || idx >= end) {
+          row.remove();
+          this.rows.delete(idx);
+        }
+      }
+
+      // Create/update visible rows
+      const fragment = document.createDocumentFragment();
+      for (let i = start; i < end; i++) {
+        if (this.rows.has(i)) continue;
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.style.height = this.itemHeight + 'px';
+        row.style.transform = `translateY(${i * this.itemHeight}px)`;
+        this.renderItem(row, this.data[i], i);
+        fragment.appendChild(row);
+        this.rows.set(i, row);
+      }
+      this.content.appendChild(fragment);
+
+      const elapsed = performance.now() - t0;
+      document.getElementById('domCount').textContent = this.rows.size;
+      document.getElementById('renderTime').textContent = elapsed.toFixed(1);
+      document.getElementById('totalCount').textContent = total.toLocaleString();
+      const perfFill = document.getElementById('perfFill');
+      const pct = Math.max(0, 100 - (this.rows.size / total) * 100 * 100);
+      perfFill.style.width = Math.min(100, Math.max(1, 1 - (elapsed / 16))) * 100 + '%';
+      perfFill.style.background = elapsed < 8 ? '#10b981' : elapsed < 16 ? '#f59e0b' : '#ef4444';
+    }
+
+    _clearAll() {
+      for (const [, row] of this.rows) row.remove();
+      this.rows.clear();
+    }
+  }
+
+  // ── Demo Data ──
+  const colors = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1'];
+
+  function generateData(n) {
+    const firstNames = ['Alice','Bob','Charlie','Diana','Eve','Frank','Grace','Henry','Iris','Jack','Kate','Leo','Mia','Noah','Olivia','Paul','Quinn','Rose','Sam','Tina'];
+    const lastNames  = ['Smith','Johnson','Williams','Brown','Jones','Garcia','Miller','Davis','Martinez','Wilson','Anderson','Taylor','Thomas','Moore','Jackson','Martin','Lee','White','Harris','Clark'];
+    const domains    = ['gmail.com','outlook.com','yahoo.com','example.org','company.io','tech.dev'];
+    return Array.from({ length: n }, (_, i) => ({
+      id: i + 1,
+      name: firstNames[i % firstNames.length] + ' ' + lastNames[(i * 7) % lastNames.length],
+      email: `user${i + 1}@${domains[i % domains.length]}`,
+      color: colors[i % colors.length],
+    }));
+  }
+
+  const scroller = new VirtualScroller(document.getElementById('scroller'), {
+    itemHeight: 52,
+    data: generateData(100000),
+    overscan: 8,
+    renderItem(row, d, idx) {
+      row.innerHTML = `
+        <span class="idx">${d.id.toLocaleString()}</span>
+        <span class="avatar" style="background:${d.color}">${d.name[0]}</span>
+        <span class="name">${d.name}</span>
+        <span class="email">${d.email}</span>
+      `;
+    }
+  });
+
+  document.getElementById('regenBtn').onclick = () => {
+    const n = Math.min(1000000, Math.max(100, +document.getElementById('countInput').value || 100000));
+    scroller.setData(generateData(n));
+  };
+  document.getElementById('jumpBtn').onclick = () => scroller.scrollToIndex(50000);
+
+  // FPS monitor
+  let frames = 0, lastTime = performance.now();
+  function fpsLoop() {
+    frames++;
+    const now = performance.now();
+    if (now - lastTime >= 1000) {
+      document.getElementById('fpsHint').textContent = `FPS: ${frames}`;
+      frames = 0; lastTime = now;
+    }
+    requestAnimationFrame(fpsLoop);
+  }
+  fpsLoop();
+</script>
+</body>
+</html>

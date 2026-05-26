@@ -44,6 +44,42 @@ Canvas 动画可视化排序算法与路径搜索。
 
 ---
 
+## 🔄 MiniRedux — 自建状态管理库
+
+从零实现 Redux 核心（~120 行）。
+
+- **createStore**：`getState` / `dispatch`（互斥锁）/ `subscribe` / 取消订阅
+- **combineReducers**：多 reducer 合并 + 引用相等性优化
+- **applyMiddleware**：洋葱模型中间件链（logger + thunk）
+- Demo 包含 Counter（同步/异步）与 Todo 共享 store
+
+→ [源码](mini-redux/) | [在线预览](https://yavans.github.io/projects/mini-redux/index.html)
+
+---
+
+## 🚀 Virtual Scroller — 高性能虚拟滚动
+
+仅渲染可视区域 DOM，支持 10 万+行流畅滚动。
+
+- **DOM 回收**：创建可见行 + 8 行缓冲区，滚动时复用而非重建
+- **RAF 节流**：`requestAnimationFrame` 合并高频 scroll 事件
+- 实时 FPS / DOM 节点数 / 渲染耗时监控
+
+→ [源码](virtual-scroller/) | [在线预览](https://yavans.github.io/projects/virtual-scroller/index.html)
+
+---
+
+## 📋 Drag & Drop Kanban — 拖拽看板
+
+仿 Trello 看板，HTML5 Drag & Drop API，localStorage 持久化。
+
+- 同列拖拽重排 + 跨列移动卡片 · 拖拽视觉反馈
+- 卡片 CRUD（标题/描述/Tag） · 动态新增列表
+
+→ [源码](drag-drop-kanban/) | [在线预览](https://yavans.github.io/projects/drag-drop-kanban/index.html)
+
+---
+
 ## 🎮 Tank Battle — 双人坦克对战
 
 Canvas 实时双人对战游戏，同键盘操作。
