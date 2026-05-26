@@ -2,6 +2,7 @@ package com.blog.service;
 
 import com.blog.dto.AuthDto;
 import com.blog.entity.User;
+import com.blog.exception.BusinessException;
 import com.blog.repository.UserRepository;
 import com.blog.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ public class UserService {
 
     public User register(AuthDto.RegisterRequest req) {
         if (userRepo.existsByUsername(req.getUsername())) {
-            throw new RuntimeException("用户名已存在");
+            throw BusinessException.conflict("用户名已存在");
         }
         User user = User.builder()
                 .username(req.getUsername())
@@ -29,9 +30,9 @@ public class UserService {
 
     public String login(AuthDto.LoginRequest req) {
         User user = userRepo.findByUsername(req.getUsername())
-                .orElseThrow(() -> new RuntimeException("用户名或密码错误"));
+                .orElseThrow(() -> BusinessException.badRequest("用户名或密码错误"));
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
-            throw new RuntimeException("用户名或密码错误");
+            throw BusinessException.badRequest("用户名或密码错误");
         }
         return jwtUtil.generateToken(user.getId(), user.getUsername());
     }

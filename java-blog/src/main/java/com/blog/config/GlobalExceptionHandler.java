@@ -1,27 +1,33 @@
 package com.blog.config;
 
 import com.blog.dto.ApiResponse;
-import org.springframework.http.HttpStatus;
+import com.blog.exception.BusinessException;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(RuntimeException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<?> handleRuntime(RuntimeException e) {
-        return ApiResponse.error(400, e.getMessage());
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiResponse<?>> handleBusiness(BusinessException e) {
+        return ResponseEntity
+                .status(e.getCode())
+                .body(ApiResponse.error(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<?> handleValidation(MethodArgumentNotValidException e) {
+    public ResponseEntity<ApiResponse<?>> handleValidation(MethodArgumentNotValidException e) {
         String msg = e.getBindingResult().getFieldErrors().stream()
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .reduce((a, b) -> a + "; " + b).orElse("参数校验失败");
-        return ApiResponse.error(400, msg);
+        return ResponseEntity.badRequest().body(ApiResponse.error(400, msg));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<?>> handleOther(Exception e) {
+        return ResponseEntity.internalServerError()
+                .body(ApiResponse.error(500, "服务器内部错误"));
     }
 }

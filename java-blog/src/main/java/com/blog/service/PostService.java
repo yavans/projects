@@ -3,6 +3,7 @@ package com.blog.service;
 import com.blog.dto.PostDto;
 import com.blog.entity.Post;
 import com.blog.entity.User;
+import com.blog.exception.BusinessException;
 import com.blog.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,9 +30,10 @@ public class PostService {
     }
 
     public Post update(Long id, PostDto.UpdateRequest req, Long userId) {
-        Post post = postRepo.findById(id).orElseThrow(() -> new RuntimeException("文章不存在"));
+        Post post = postRepo.findById(id)
+                .orElseThrow(() -> BusinessException.notFound("文章不存在"));
         if (!post.getAuthor().getId().equals(userId)) {
-            throw new RuntimeException("无权修改");
+            throw BusinessException.forbidden("无权修改");
         }
         if (req.getTitle() != null) post.setTitle(req.getTitle());
         if (req.getContent() != null) post.setContent(req.getContent());
@@ -40,15 +42,17 @@ public class PostService {
     }
 
     public void delete(Long id, Long userId) {
-        Post post = postRepo.findById(id).orElseThrow(() -> new RuntimeException("文章不存在"));
+        Post post = postRepo.findById(id)
+                .orElseThrow(() -> BusinessException.notFound("文章不存在"));
         if (!post.getAuthor().getId().equals(userId)) {
-            throw new RuntimeException("无权删除");
+            throw BusinessException.forbidden("无权删除");
         }
         postRepo.delete(post);
     }
 
     public Post getById(Long id) {
-        return postRepo.findById(id).orElseThrow(() -> new RuntimeException("文章不存在"));
+        return postRepo.findById(id)
+                .orElseThrow(() -> BusinessException.notFound("文章不存在"));
     }
 
     public Page<Post> list(String tag, String keyword, int page, int size) {

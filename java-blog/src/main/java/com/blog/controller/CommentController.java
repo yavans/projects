@@ -2,7 +2,7 @@ package com.blog.controller;
 
 import com.blog.dto.ApiResponse;
 import com.blog.dto.CommentDto;
-import com.blog.entity.Comment;
+import com.blog.dto.CommentResponse;
 import com.blog.service.CommentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,16 +19,18 @@ public class CommentController {
     private final CommentService commentService;
 
     @GetMapping
-    public ApiResponse<List<Comment>> list(@PathVariable Long postId) {
-        return ApiResponse.ok(commentService.getByPostId(postId));
+    public ApiResponse<List<CommentResponse>> list(@PathVariable Long postId) {
+        List<CommentResponse> result = commentService.getByPostId(postId)
+                .stream().map(CommentResponse::from).toList();
+        return ApiResponse.ok(result);
     }
 
     @PostMapping
-    public ApiResponse<Comment> create(@PathVariable Long postId,
-                                        @Valid @RequestBody CommentDto.CreateRequest req,
-                                        Authentication auth) {
+    public ApiResponse<CommentResponse> create(@PathVariable Long postId,
+                                                @Valid @RequestBody CommentDto.CreateRequest req,
+                                                Authentication auth) {
         Long userId = (Long) auth.getPrincipal();
-        return ApiResponse.ok(commentService.create(postId, req, userId));
+        return ApiResponse.ok(CommentResponse.from(commentService.create(postId, req, userId)));
     }
 
     @DeleteMapping("/{id}")
